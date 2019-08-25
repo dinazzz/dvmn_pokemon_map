@@ -23,8 +23,8 @@ def add_pokemon(folium_map, lat, lon, name, image_url=DEFAULT_IMAGE_URL):
 
 
 def show_all_pokemons(request):
-    pokemon_entities = PokemonEntity.objects.all()
-    pokemons = Pokemon.objects.filter(id__in=pokemon_entities.values_list('pokemon', flat=True))
+    pokemon_entities = PokemonEntity.objects.select_related('pokemon').all()
+    pokemons = Pokemon.objects.all()
 
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
     for pokemon_entity in pokemon_entities:
@@ -48,20 +48,21 @@ def show_all_pokemons(request):
 
 def show_pokemon(request, pokemon_id):
     requested_pokemon = Pokemon.objects.get(id=pokemon_id)
-    next_evolution = requested_pokemon.next_evolution
-    previous_evolution = requested_pokemon.previous_evolution
+    evolution_from = requested_pokemon.evolution_from
+    evolution_to = requested_pokemon.evolutions.all()
 
-    if next_evolution is not None:
-        next_evolution = {
-            "title_ru": requested_pokemon.next_evolution.title,
-            "pokemon_id": requested_pokemon.next_evolution.id,
-            "img_url": requested_pokemon.next_evolution.image.url
+    if evolution_to:
+        evolution_to = {
+            "title_ru": evolution_to[0].title,
+            "pokemon_id": evolution_to[0].id,
+            "img_url": evolution_to[0].image.url
         }
-    if previous_evolution is not None:
-        previous_evolution = {
-            "title_ru": requested_pokemon.previous_evolution.title,
-            "pokemon_id": requested_pokemon.previous_evolution.id,
-            "img_url": requested_pokemon.previous_evolution.image.url
+
+    if evolution_from:
+        evolution_from = {
+            "title_ru": evolution_from.title,
+            "pokemon_id": evolution_from.id,
+            "img_url": evolution_from.image.url
         }
 
     pokemon_info = {
@@ -71,10 +72,11 @@ def show_pokemon(request, pokemon_id):
         'title_en': requested_pokemon.title_en,
         'title_jp': requested_pokemon.title_jp,
         'description': requested_pokemon.description,
-        'next_evolution': next_evolution,
-        'previous_evolution': previous_evolution
+        'next_evolution': evolution_to,
+        'previous_evolution': evolution_from
     }
-    requested_pokemon_entities = PokemonEntity.objects.filter(pokemon=requested_pokemon)
+
+    requested_pokemon_entities = PokemonEntity.objects.select_related('pokemon').filter(pokemon=requested_pokemon)
 
     folium_map = folium.Map(location=MOSCOW_CENTER, zoom_start=12)
     for pokemon_entity in requested_pokemon_entities:
